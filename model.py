@@ -6,46 +6,76 @@ from pybrain.tools.shortcuts import buildNetwork
 from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.datasets import UnsupervisedDataSet  
 from pybrain.structure.modules import TanhLayer
+import sys
 
 print('[+] Loading data set')
 
-dataset = SupervisedDataSet(constants.MAX_WORD_LENGHT, 1)
+dataset = SupervisedDataSet(constants.MAX_WORD_LENGHT, constants.OUTPUT_NODES)
 
-dataframe = pd.read_csv('finalDataSetTrainingWithCharacters.csv')
-dataframe.drop(columns=['Word', 'Len'], inplace=True)
+dataframe = pd.read_csv('spanish_german_sample.csv')
+dataframeTraining = dataframe.drop(columns=['Word', 'Len'])
 
-for _, row in dataframe.iterrows():
+dataframeLen = len(dataframe)
+lenForTesting = round(dataframeLen * 0.25)
+
+dataframeTesting = dataframeTraining.sample(lenForTesting)
+dataframeTraining = dataframeTraining[~dataframeTraining.index.isin(list(dataframeTesting.index))]
+
+for _, row in dataframeTraining.iterrows():
 	
 	output = tuple([row["Language"]])
 	inputs = tuple(row[1:]) # remove language, keep only the 20 characters values
- 
+
 	dataset.addSample(inputs, output)
+
 
 print('[+] Dataset loaded successfully')
 print('[+] Starting Tranining.....')
 
-net = buildNetwork(constants.MAX_WORD_LENGHT, 10, 1, bias=True, hiddenclass=TanhLayer) # cant input nodes, hidden nodes nd output nodes
-trainer = BackpropTrainer(net, dataset)
-trainer.trainUntilConvergence()
+net = buildNetwork(constants.MAX_WORD_LENGHT, constants.HIDDEN_NODES, constants.OUTPUT_NODES, bias=True) # cant input nodes, hidden nodes nd output nodes
+trainer = BackpropTrainer(net, dataset, learningrate = 0.05)
+#trainer.trainOnDataset(dataset, 10)
+#trainer.testOnData(verbose=True)
+trainer.train()
 
 print("[+] The Training has finished")
 
+words = []
+languageIds = []
+languages = []
+results = []
+errors = []
+for rowId, row in dataframeTraining.iterrows():
+
+	output = tuple([row["Language"]])
+	inputs = tuple(row[1:]) # remove language, keep only the 20 characters values	
+	result = net.activate(inputs)[0].round(5)
+	languageId = dataframe.at[rowId, "Language"]
+	error = (result - languageId).round(5)
+	word = dataframe.at[rowId, "Word"]
+
+	words.append(word)
+	languageIds.append(languageId)
+	languages.append(constants.dicLanguageIdToString[languageId])
+	results.append(result)
+	errors.append(error)
+
+dfSaveOutput = pd.DataFrame(data={'Word':words, 'Expected Language Id': languageIds, 'Expected Language': languages, 'Result': results, 'Error': errors})
+dfSaveOutput.to_csv('result_testing.csv', index=False)
+'''
+
 while 1:
 
-	userInput = input("ingrese palabra:")
+	userInput = input("Input Word:")
 
-	if len(userInput) > MAX_WORD_LENGHT:
+	if len(userInput) > constants.MAX_WORD_LENGHT:
 		print("[-] Error: The word exced {maxCharacters} characters".format(maxCharacters=constants.MAX_WORD_LENGHT))
 		continue
 
 	netInput = utilities.wordToList(userInput)
-	print(netInput)
-
-	dst = UnsupervisedDataSet(constants.MAX_WORD_LENGHT, )
-	dst.addSample(tuple(netInput))
-	result=net.activateOnDataset(dst)
-
-	#result = net.activate(netInput)
+	
+	result=net.activate(netInput)
 
 	print(result)
 
+'''

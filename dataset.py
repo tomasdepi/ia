@@ -40,9 +40,9 @@ datasetTraining = pd.concat([datasetTraining, japaneseDataframe])
 
 
 datasetTraining["Len"] = [len(word) for word in datasetTraining["Word"]]
-datasetTraining = datasetTraining.query('Len <= 20')
+datasetTraining = datasetTraining.query('Len <= {max}'.format(max=constants.MAX_WORD_LENGHT))
 
-for x in range(1,21):
+for x in range(1,constants.MAX_WORD_LENGHT+1):
     subIndex = x-1
     datasetTraining["c"+str(x)] = [utilities.wordToList(word)[subIndex] for word in datasetTraining["Word"]]
 
